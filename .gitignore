@@ -1,0 +1,17 @@
+# Ficheros intermedios de Vim
+*.swp
+
+# Ficheros de compilación
+*.o
+*.d
+
+# Directorios de compilación
+build/
+
+# Ficheros de configuración de Eclipse
+.project
+.cproject
+.settings/
+
+# Ficheros .old del SDK
+sdkconfig.old
