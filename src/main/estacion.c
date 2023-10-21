@@ -14,6 +14,7 @@
 /* Component includes */
 #include "temt6000.h"
 #include "ezconnect.h"
+#include "mqtt.h"
 
 static void temt6000_task()
 {
@@ -40,6 +41,10 @@ static void temt6000_task()
 
 void app_main()
 {
+
+    printf("[+] Free memory: %d bytes\n", esp_get_free_heap_size());
+    printf("[+] IDF version: %s\n", esp_get_idf_version());
+
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -47,6 +52,8 @@ void app_main()
     ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));
     ESP_ERROR_CHECK(ezconnect());
     
-    temt6000_init();
-    xTaskCreate(temt6000_task, "temt6000_task", 1024, NULL, 5, NULL);
+    //ESP_ERROR_CHECK(temt6000_init());
+    //xTaskCreate(temt6000_task, "temt6000_task", 1024, NULL, 5, NULL);
+    
+    ESP_ERROR_CHECK(mqtt_init("https://www.google.com"))
 }

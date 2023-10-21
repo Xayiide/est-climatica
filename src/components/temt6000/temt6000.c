@@ -3,9 +3,12 @@
 #include "freertos/FreeRTOS.h" /* portTICK_PERIOD_MS */
 #include "freertos/task.h"     /* vTaskDelay         */
 #include "driver/adc.h"        /* adc_config_t       */
+#include "esp_log.h"           /* ESP_LOGE           */
 #include "esp_err.h"           /* ESP_ERROR_CHECK    */
 
 #include "include/temt6000.h"
+
+static const char *TAG = "[temt6000]";
 
 struct temt6000_data temt6000_read()
 {
@@ -31,11 +34,19 @@ struct temt6000_data temt6000_read()
     return data;
 }
 
-void temt6000_init()
+esp_err_t temt6000_init()
 {
+    esp_err_t    ret;
     adc_config_t adc_config;
 
     adc_config.mode    = ADC_READ_TOUT_MODE;
     adc_config.clk_div = 8;
-    ESP_ERROR_CHECK(adc_init(&adc_config));
+
+    ret = adc_init(&adc_config);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error initializing ADC");
+        /* TODO: informar más acerca del error */
+    }
+
+    return ret;
 }
