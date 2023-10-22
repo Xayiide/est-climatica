@@ -54,6 +54,9 @@ void app_main()
     ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));
     ESP_ERROR_CHECK(ezconnect());
     
-    //ESP_ERROR_CHECK(temt6000_init());
-    //xTaskCreate(temt6000_task, "temt6000_task", 1024, NULL, 5, NULL);
+    ESP_ERROR_CHECK(temt6000_init());
+    xTaskCreate(temt6000_task, "temt6000_task", 1024, NULL, 5, NULL);
+    
+    ESP_ERROR_CHECK(thingsboard_init("https:www.google.com"));
+
 }

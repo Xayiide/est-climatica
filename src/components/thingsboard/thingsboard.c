@@ -1,15 +1,16 @@
-#include "esp_err.h" /* esp_err_t */
-#include "esp_log.h" /* ESP_LOGE  */
+#include "esp_err.h"     /* esp_err_t */
+#include "esp_log.h"     /* ESP_LOGE  */
+#include "mqtt_client.h" /* mqtt      */
 
 #include "include/thingsboard.h"
-#if 0
 
-static const char *TAG = "[mqtt]";
+
+static const char *TAG = "[thingsboard]";
 
 static esp_mqtt_client_config_t g_mqtt_cnfg;
 static esp_mqtt_client_handle_t g_client;
 
-staic esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handler_t event)
+static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
     esp_mqtt_client_handle_t client = event->client;
     int                      msg_id;
@@ -49,12 +50,12 @@ static void mqtt_event_handler(void             *handler_args,
     mqtt_event_handler_cb(event_data);
 }
 
-esp_err_t mqtt_init(char *uri)
+esp_err_t thingsboard_init(char *uri)
 {
     esp_err_t ret = ESP_OK;
     
     g_mqtt_cnfg.uri = uri;
-    g_client        = esp_mqtt_client_init(&mqtt_cnfg);
+    g_client        = esp_mqtt_client_init(&g_mqtt_cnfg);
 
 
 
@@ -65,5 +66,3 @@ esp_err_t mqtt_init(char *uri)
 
     return ret;
 }
-
-#endif
