@@ -11,10 +11,12 @@
 
 #include "esp_netif.h"         /* esp_netif_init                */
 
+#include "mqtt_client.h"
+
 /* Component includes */
 #include "temt6000.h"
 #include "ezconnect.h"
-#include "mqtt.h"
+#include "thingsboard.h"
 
 static void temt6000_task()
 {
@@ -54,6 +56,4 @@ void app_main()
     
     //ESP_ERROR_CHECK(temt6000_init());
     //xTaskCreate(temt6000_task, "temt6000_task", 1024, NULL, 5, NULL);
-    
-    ESP_ERROR_CHECK(mqtt_init("https://www.google.com"))
 }
