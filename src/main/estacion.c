@@ -57,6 +57,9 @@ void app_main()
     ESP_ERROR_CHECK(temt6000_init());
     xTaskCreate(temt6000_task, "temt6000_task", 1024, NULL, 5, NULL);
     
-    ESP_ERROR_CHECK(thingsboard_init("https:www.google.com"));
+    /* mqtt://username:password@mqtt.thingsbord.cloud:1883 */
+    ESP_ERROR_CHECK(thingsboard_init("mqtt://mqtt.thingsboard.cloud",
+                                     (uint16_t) 1883,
+                                     "username"));
 
 }

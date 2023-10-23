@@ -50,14 +50,28 @@ static void mqtt_event_handler(void             *handler_args,
     mqtt_event_handler_cb(event_data);
 }
 
-esp_err_t thingsboard_init(char *uri)
+esp_err_t thingsboard_init(char *uri, uint16_t port, char *username)
 {
     esp_err_t ret = ESP_OK;
     
-    g_mqtt_cnfg.uri = uri;
-    g_client        = esp_mqtt_client_init(&g_mqtt_cnfg);
+    g_mqtt_cnfg.uri      = uri;
+    g_mqtt_cnfg.port     = port;
+    g_mqtt_cnfg.username = username;
 
 
+
+    g_client = esp_mqtt_client_init(&g_mqtt_cnfg);
+    if (g_client != NULL) {
+        esp_mqtt_client_register_event(g_client,
+                                       ESP_EVENT_ANY_ID,
+                                       mqtt_event_handler,
+                                       g_client);
+
+        ret = esp_mqtt_client_start(g_client);
+    }
+    else {
+        ret = ESP_FAIL;
+    }
 
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Error initializing MQTT");
