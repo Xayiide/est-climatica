@@ -12,27 +12,18 @@ static esp_mqtt_client_handle_t g_client;
 
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
-    esp_mqtt_client_handle_t client = event->client;
-    int                      msg_id;
-
     switch (event->event_id) {
         case MQTT_EVENT_CONNECTED:
-            msg_id = esp_mqtt_client_publish(client,
-                                             "v1/devices/me/telemetry",
-                                             "{lux: 69420}",
-                                             0, /* length from payload str */
-                                             1, /* QoS */
-                                             0  /* retain */);
-            ESP_LOGI(TAG, "Sent publish succesfully, msg_id: %d", msg_id);
+            ESP_LOGI(TAG, "Connected to Thingsboard.");
             break;
         case MQTT_EVENT_DISCONNECTED:
-            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED.");
             break;
         case MQTT_EVENT_ERROR:
-            ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+            ESP_LOGI(TAG, "MQTT_EVENT_ERROR.");
             break;
         default:
-            ESP_LOGI(TAG, "Other event id: %d", event->event_id);
+            ESP_LOGI(TAG, "Other event id: %d.", event->event_id);
             break;
     }
 
@@ -44,7 +35,7 @@ static void mqtt_event_handler(void             *handler_args,
                                int32_t           event_id,
                                void             *event_data)
 {
-    ESP_LOGD(TAG, "Event dispatched from event loop base: %s, event_id: %d",
+    ESP_LOGD(TAG, "Event dispatched from event loop base: %s, event_id: %d.",
             base, event_id);
 
     mqtt_event_handler_cb(event_data);
@@ -57,8 +48,6 @@ esp_err_t thingsboard_init(char *uri, uint16_t port, char *username)
     g_mqtt_cnfg.uri      = uri;
     g_mqtt_cnfg.port     = port;
     g_mqtt_cnfg.username = username;
-
-
 
     g_client = esp_mqtt_client_init(&g_mqtt_cnfg);
     if (g_client != NULL) {
@@ -74,7 +63,26 @@ esp_err_t thingsboard_init(char *uri, uint16_t port, char *username)
     }
 
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Error initializing MQTT");
+        ESP_LOGE(TAG, "Error initializing MQTT.");
+        /* TODO: informar más acerca del error */
+    }
+
+    return ret;
+}
+
+esp_err_t thingsboard_pub(char *data, int len, int qos, int retain)
+{
+    esp_err_t ret = ESP_OK;
+    int       msg_id;
+
+    msg_id = esp_mqtt_client_publish(g_client, "v1/devices/me/telemetry",
+                                     data, len, qos, retain);
+
+    if (msg_id == -1)
+        ret = ESP_FAIL;
+
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error publishing data.");
         /* TODO: informar más acerca del error */
     }
 

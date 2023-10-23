@@ -14,38 +14,22 @@
 #include "mqtt_client.h"
 
 /* Component includes */
+
 #include "temt6000.h"
 #include "ezconnect.h"
 #include "thingsboard.h"
+#include "datasrc.h"
 
-static void temt6000_task()
+static void create_data_sources()
 {
-    struct temt6000_data t6_data;
-    int32_t              print_v, print_lx;
-
-    while (1)
-    {
-        t6_data = temt6000_read();       
-
-        print_v  = t6_data.volts * TEMT6000_DEC_PLACE_MUL;
-        print_lx = t6_data.lux   * TEMT6000_DEC_PLACE_MUL;
-
-        printf("[+] Volts        : %d.%2u\r\n", 
-            print_v / TEMT6000_DEC_PLACE_MUL,
-            abs(print_v) * TEMT6000_DEC_PLACE_MUL);
-        printf("[+] Lux          : %d.%2u\r\n",
-            print_lx / TEMT6000_DEC_PLACE_MUL, 
-            abs(print_lx) * TEMT6000_DEC_PLACE_MUL);
-
-        vTaskDelay(1000 / portTICK_RATE_MS);
-    }
+    ds_create_source(DS_TEMT6000, temt6000_init, temt6000_read2, "lux", 1);
 }
 
 void app_main()
 {
 
-    printf("[+] Free memory: %d bytes\n", esp_get_free_heap_size());
-    printf("[+] IDF version: %s\n", esp_get_idf_version());
+    printf("[+] Free memory: %d bytes.\n", esp_get_free_heap_size());
+    printf("[+] IDF version: %s.\n", esp_get_idf_version());
 
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
@@ -54,12 +38,12 @@ void app_main()
     ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));
     ESP_ERROR_CHECK(ezconnect());
     
-    ESP_ERROR_CHECK(temt6000_init());
-    xTaskCreate(temt6000_task, "temt6000_task", 1024, NULL, 5, NULL);
     
     /* mqtt://username:password@mqtt.thingsbord.cloud:1883 */
     ESP_ERROR_CHECK(thingsboard_init("mqtt://mqtt.thingsboard.cloud",
                                      (uint16_t) 1883,
                                      "username"));
+
+    create_data_sources();
 
 }

@@ -34,6 +34,17 @@ struct temt6000_data temt6000_read()
     return data;
 }
 
+void temt6000_read2(struct temt6000_data *data)
+{
+    struct temt6000_data d;
+    d = temt6000_read();
+
+    data->lux   = d.lux;
+    data->volts = d.volts;
+
+    return;
+}
+
 esp_err_t temt6000_init()
 {
     esp_err_t    ret;
@@ -44,7 +55,7 @@ esp_err_t temt6000_init()
 
     ret = adc_init(&adc_config);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Error initializing ADC");
+        ESP_LOGE(TAG, "Error initializing ADC.");
         /* TODO: informar más acerca del error */
     }
 
