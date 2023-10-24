@@ -10,10 +10,9 @@
 
 static const char *TAG = "[temt6000]";
 
-struct temt6000_data temt6000_read()
+void temt6000_read(void *data)
 {
-    struct temt6000_data data;
-
+    struct temt6000_data *d = (struct temt6000_data *) data;
     uint16_t read_value;
     double   volts, amps, microamps, lux;
 
@@ -23,24 +22,14 @@ struct temt6000_data temt6000_read()
         microamps = amps * 1000000.0; /* 1 million microamps = 1 amp */
         lux       = microamps * 2.0;
 
-        data.volts = volts;
-        data.lux   = lux;
+        d->volts = volts;
+        d->lux   = lux;
     }
     else {
-        data.volts = -1.0;
-        data.lux   = -1.0;
+        d->lux   = -1.0;
     }
 
-    return data;
-}
-
-void temt6000_read2(struct temt6000_data *data)
-{
-    struct temt6000_data d;
-    d = temt6000_read();
-
-    data->lux   = d.lux;
-    data->volts = d.volts;
+    data = d;
 
     return;
 }
@@ -50,6 +39,7 @@ esp_err_t temt6000_init()
     esp_err_t    ret;
     adc_config_t adc_config;
 
+
     adc_config.mode    = ADC_READ_TOUT_MODE;
     adc_config.clk_div = 8;
 
@@ -58,6 +48,8 @@ esp_err_t temt6000_init()
         ESP_LOGE(TAG, "Error initializing ADC.");
         /* TODO: informar más acerca del error */
     }
+
+    printf("temt6000 inicializado\n");
 
     return ret;
 }

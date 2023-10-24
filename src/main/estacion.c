@@ -22,7 +22,10 @@
 
 static void create_data_sources()
 {
-    ds_create_source(DS_TEMT6000, temt6000_init, temt6000_read2, "lux", 1);
+    ESP_ERROR_CHECK(ds_create_source(DS_TEMT6000,
+                                     temt6000_init,
+                                     temt6000_read,
+                                     1));
 }
 
 void app_main()
@@ -45,5 +48,8 @@ void app_main()
                                      "username"));
 
     create_data_sources();
-
+    if (ds_start() != ESP_OK) {
+        printf("ERROR STARTING DATA SOURCES\n");
+        while (1);
+    }
 }

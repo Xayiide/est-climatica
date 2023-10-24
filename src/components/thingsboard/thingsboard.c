@@ -75,6 +75,8 @@ esp_err_t thingsboard_pub(char *data, int len, int qos, int retain)
     esp_err_t ret = ESP_OK;
     int       msg_id;
 
+    /* TODO: comprobar que la conexión de mqtt con thingsboard sigue activa */
+
     msg_id = esp_mqtt_client_publish(g_client, "v1/devices/me/telemetry",
                                      data, len, qos, retain);
 

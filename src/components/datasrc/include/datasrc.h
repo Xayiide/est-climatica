@@ -9,6 +9,8 @@
 #define DS_NAME_MAX_LEN 16
 #define DS_UNIT_MAX_LEN 8
 
+#define DS_LUX_MULT_DEC  100
+#define DS_VOLT_MULT_DEC 10000
 
 /* init_cb: puntero a función que no toma parámetros y devuelve esp_err_t */
 typedef esp_err_t (*init_cb)(void);
@@ -26,12 +28,12 @@ struct data_source
     enum srcname name;
     init_cb      init;
     read_cb      read;
-    char         unit[DS_UNIT_MAX_LEN];
     uint32_t     interval;
 };
 
+esp_err_t ds_start();
 esp_err_t ds_create_source(enum srcname name, init_cb init, read_cb read,
-                           char *unit, uint32_t interval);
+                           uint32_t interval);
 esp_err_t ds_init_all_sources();
 void      ds_periodic_task();
 char     *ds_srcname_to_str(enum srcname name);

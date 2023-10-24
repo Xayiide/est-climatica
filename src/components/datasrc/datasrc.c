@@ -2,6 +2,8 @@
 #include <string.h>  /* strcpy    */
 #include <stdint.h>  /* uint_t    */
 #include <stddef.h>  /* size_t    */
+#include <math.h>    /* modf      */
+
 #include "esp_err.h" /* esp_err_t */
 #include "esp_log.h" /* ESP_LOGE  */
 
@@ -19,8 +21,26 @@ static uint32_t           g_num_sources = 0;
 
 static void ds_proc_temt6000(struct data_source d);
 
+esp_err_t ds_start()
+{
+    esp_err_t ret = ESP_OK;
+
+    if (g_num_sources == 0) {
+        ret = ESP_FAIL;
+        ESP_LOGE(TAG, "Error starting data sources: there are none.");
+    }
+    else {
+        if (ds_init_all_sources() == ESP_OK)
+            xTaskCreate(ds_periodic_task, "datasrc_task", 1024, NULL, 10, NULL);
+        else
+            ret = ESP_FAIL;
+    }
+
+    return ret;
+}
+
 esp_err_t ds_create_source(enum srcname name, init_cb init, read_cb read,
-                           char *unit, uint32_t interval)
+                           uint32_t interval)
 {
     esp_err_t ret = ESP_OK;
 
@@ -29,10 +49,10 @@ esp_err_t ds_create_source(enum srcname name, init_cb init, read_cb read,
         ESP_LOGE(TAG, "Max number of data sources reached.");
     }
     else if (g_num_sources < DS_MAX_SOURCES - 1) { /* Todavía cabe uno */
+        ESP_LOGI(TAG, "Creating data source: %s", ds_srcname_to_str(name));
         g_sources[g_num_sources].name     = name;
         g_sources[g_num_sources].init     = init;
         g_sources[g_num_sources].read     = read;
-        strncpy(g_sources[g_num_sources].unit, unit, (size_t) DS_UNIT_MAX_LEN);
         g_sources[g_num_sources].interval = interval;
 
         g_num_sources++;
@@ -44,10 +64,12 @@ esp_err_t ds_create_source(enum srcname name, init_cb init, read_cb read,
 esp_err_t ds_init_all_sources()
 {
     uint32_t  i;
-    esp_err_t ret;
+    esp_err_t ret = ESP_OK;
+    esp_err_t init_ret;
 
     for (i = 0; i < g_num_sources; i++) {
-        if (g_sources[i].init() != ESP_OK) {
+        init_ret = g_sources[i].init();
+        if (init_ret != ESP_OK) {
             ESP_LOGE(TAG, "Error initializing data source %d: %s",
                 i, ds_srcname_to_str(g_sources[i].name));
             ret = ESP_FAIL;
@@ -103,11 +125,24 @@ char *ds_srcname_to_str(enum srcname name)
 
 void ds_proc_temt6000(struct data_source d)
 {
-    struct temt6000_data  data;
-    char                 *lux = "{lux: %d}";
+    struct temt6000_data temt_data;
+    char                 tb_msg[64];
+    int32_t              v, lx;
+    double               v_dec, lx_dec;
 
 
-    d.read((void *) &data); /* o algo así */
-    /* TODO: enviar a thingsboard estos datos */
-    thingsboard_pub(lux, 0, 1, 0);
+    d.read((void *) &temt_data); /* o algo así */
+
+    v      = (int32_t) temt_data.volts;
+    v_dec  = temt_data.volts - v;
+    lx     = temt_data.lux;
+    lx_dec = modf(temt_data.lux, &lx_dec);
+
+    printf("lux:        %d.%02d lx\r\n", lx, (uint8_t) (lx_dec * DS_LUX_MULT_DEC));
+    printf("volts:      %d.%04d V\r\n", v, (uint32_t) (v_dec * DS_VOLT_MULT_DEC));
+
+    sprintf(tb_msg, "{lux: %d.%02d, volts: %d.%04d}",
+            lx, (uint32_t) (lx_dec * DS_LUX_MULT_DEC),
+            v,  (uint32_t) (v_dec  * DS_VOLT_MULT_DEC));
+    thingsboard_pub(tb_msg, 0, 1, 0);
 }

@@ -14,8 +14,7 @@ struct temt6000_data
 };
 
 
-esp_err_t            temt6000_init();
-struct temt6000_data temt6000_read();
-void                 temt6000_read2(struct temt6000_data *);
+esp_err_t temt6000_init();
+void      temt6000_read(void *);
 
 #endif
