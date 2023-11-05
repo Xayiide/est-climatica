@@ -1,7 +1,4 @@
-#include <stdio.h>
-
 #include "freertos/FreeRTOS.h" /* portTICK_PERIOD_MS */
-#include "freertos/task.h"     /* vTaskDelay         */
 #include "driver/adc.h"        /* adc_config_t       */
 #include "esp_log.h"           /* ESP_LOGE           */
 #include "esp_err.h"           /* ESP_ERROR_CHECK    */
@@ -48,8 +45,6 @@ esp_err_t temt6000_init()
         ESP_LOGE(TAG, "Error initializing ADC.");
         /* TODO: informar más acerca del error */
     }
-
-    printf("temt6000 inicializado\n");
 
     return ret;
 }
