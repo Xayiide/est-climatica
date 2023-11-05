@@ -19,7 +19,7 @@ static const char *TAG = "[datasrc]";
 static struct data_source g_sources[DS_MAX_SOURCES];
 static uint32_t           g_num_sources = 0;
 
-static void ds_proc_temt6000(struct data_source d);
+static void proc_temt6000(struct data_source d);
 
 esp_err_t ds_start()
 {
@@ -89,7 +89,7 @@ void ds_periodic_task()
             d = g_sources[i];
             switch(d.name) {
                 case DS_TEMT6000:
-                    ds_proc_temt6000(d);
+                    proc_temt6000(d);
                     break;
                 case DS_OTHER:
                     break;
@@ -123,7 +123,7 @@ char *ds_srcname_to_str(enum srcname name)
     return ret;
 }
 
-void ds_proc_temt6000(struct data_source d)
+void proc_temt6000(struct data_source d)
 {
     struct temt6000_data temt_data;
     char                 tb_msg[64];
