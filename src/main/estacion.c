@@ -20,12 +20,14 @@
 #include "thingsboard.h"
 #include "datasrc.h"
 
+#include "am2315c.h"
+
 static void create_data_sources()
 {
-    ESP_ERROR_CHECK(ds_create_source(DS_TEMT6000,
-                                     temt6000_init,
-                                     temt6000_read,
-                                     1));
+    //ESP_ERROR_CHECK(ds_create_source(DS_TEMT6000,
+    //                                 temt6000_init,
+    //                                 temt6000_read,
+    //                                 1));
 }
 
 void app_main()
@@ -38,18 +40,23 @@ void app_main()
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));
-    ESP_ERROR_CHECK(ezconnect());
+    //ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));
+    //ESP_ERROR_CHECK(ezconnect());
     
     
     /* mqtt://username:password@mqtt.thingsbord.cloud:1883 */
-    ESP_ERROR_CHECK(thingsboard_init("mqtt://mqtt.thingsboard.cloud",
-                                     (uint16_t) 1883,
-                                     "username"));
+    //ESP_ERROR_CHECK(thingsboard_init("mqtt://mqtt.thingsboard.cloud",
+    //                                 (uint16_t) 1883,
+    //                                 "username"));
 
-    create_data_sources();
-    if (ds_start() != ESP_OK) {
-        printf("ERROR STARTING DATA SOURCES\n");
-        while (1);
-    }
+    //create_data_sources();
+    //if (ds_start() != ESP_OK) {
+    //    printf("ERROR STARTING DATA SOURCES\n");
+    //    while (1);
+    //}
+
+    ESP_ERROR_CHECK(am2315c_init());
+    uint8_t status = 0;
+    read_status(&status);
+
 }
