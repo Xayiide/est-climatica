@@ -63,7 +63,7 @@ esp_err_t read_sensor(i2c_port_t  i2c_port,
 
     ESP_ERROR_CHECK(read_status(&status));
     if ((status & 0x18) != 0x18) {
-        /* reinicia los registros 0x1B, 0x1C y 0x1E */
+        /* TODO: reinicia los registros 0x1B, 0x1C y 0x1E */
         ESP_LOGE(TAG, "Error: el estado es incorrecto.");
         ret = ESP_FAIL;
         return ret;
@@ -122,9 +122,15 @@ esp_err_t request_data()
 {
     esp_err_t        ret = ESP_OK;
     i2c_cmd_handle_t cmd;
+    uint8_t          status;
     uint8_t          req_b1 = 0xAC;
     uint8_t          req_b2 = 0x33;
     uint8_t          req_b3 = 0x00;
+
+    uint8_t          data_state;
+    uint8_t          data_hum1, data_hum2;
+    uint8_t          data_mix;
+    uint8_t          data_temp1, data_temp2;
 
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -137,6 +143,29 @@ esp_err_t request_data()
     i2c_master_stop(cmd);
     ret = i2c_master_cmd_begin(AM2315C_I2C_NUM, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
+
+    vTaskDelay(80 / portTICK_RATE_MS);
+
+    ESP_ERROR_CHECK(read_status(&status));
+
+    while ((status & 0x80) == 0x80) {
+        vTaskDelay(10 / portTICK_RATE_MS);
+        readStatus(&status);
+    }
+
+    /* Ahora podemos leer 6 bytes */
+    cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd,
+                          (AM2315C_ADDRESS << 1 | I2C_MASTER_READ),
+                          ACK_EN);
+    i2c_master_read(cmd, &data_state, 1, I2C_MASTER_ACK);
+    i2c_master_read(cmd, &data_hum1,  1, I2C_MASTER_ACK);
+    i2c_master_read(cmd, &data_hum2,  1, I2C_MASTER_ACK);
+    i2c_master_read(cmd, &data_mix,   1, I2C_MASTER_ACK);
+    i2c_master_read(cmd, &data_temp1, 1, I2C_MASTER_ACK);
+    i2c_master_read(cmd, &data_temp2, 1, I2C_MASTER_ACK);
+
 
     return ret;
 }
