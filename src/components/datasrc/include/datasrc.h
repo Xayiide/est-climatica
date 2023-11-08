@@ -11,6 +11,8 @@
 
 #define DS_LUX_MULT_DEC  100
 #define DS_VOLT_MULT_DEC 10000
+#define DS_HUM_MULT_DEC  10
+#define DS_TEMP_MULT_DEC 100
 
 /* init_cb: puntero a función que no toma parámetros y devuelve esp_err_t */
 typedef esp_err_t (*init_cb)(void);
@@ -19,8 +21,9 @@ typedef void (*read_cb)(void *);
 
 enum srcname
 {
-    DS_TEMT6000 = 0,
-    DS_OTHER    = 1
+    DS_TEMT6000,
+    DS_AM2315C,
+    DS_OTHER
 };
 
 struct data_source

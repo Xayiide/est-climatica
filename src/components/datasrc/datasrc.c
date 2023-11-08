@@ -13,6 +13,7 @@
 #include "include/datasrc.h"
 #include "thingsboard.h"
 #include "temt6000.h"
+#include "am2315c.h"
 
 static const char *TAG = "[datasrc]";
 
@@ -20,6 +21,7 @@ static struct data_source g_sources[DS_MAX_SOURCES];
 static uint32_t           g_num_sources = 0;
 
 static void proc_temt6000(struct data_source d);
+static void proc_am2315c (struct data_source d);
 
 esp_err_t ds_start()
 {
@@ -91,6 +93,9 @@ void ds_periodic_task()
                 case DS_TEMT6000:
                     proc_temt6000(d);
                     break;
+                case DS_AM2315C:
+                    proc_am2315c(d);
+                    break;
                 case DS_OTHER:
                     break;
                 default:
@@ -112,6 +117,9 @@ char *ds_srcname_to_str(enum srcname name)
         case DS_TEMT6000:
             ret = "temt6000";
             break;
+        case DS_AM2315C:
+            ret = "AM2315C";
+            break;
         case DS_OTHER:
             ret = "otherdevice";
             break;
@@ -125,18 +133,18 @@ char *ds_srcname_to_str(enum srcname name)
 
 void proc_temt6000(struct data_source d)
 {
-    struct temt6000_data temt_data;
+    struct temt6000_data data;
     char                 tb_msg[64];
     int32_t              v, lx;
     double               v_dec, lx_dec;
 
 
-    d.read((void *) &temt_data); /* o algo así */
+    d.read((void *) &data); /* o algo así */
 
-    v      = (int32_t) temt_data.volts;
-    v_dec  = temt_data.volts - v;
-    lx     = temt_data.lux;
-    lx_dec = modf(temt_data.lux, &lx_dec);
+    v      = (int32_t) data.volts;
+    v_dec  = data.volts - v;
+    lx     = data.lux;
+    lx_dec = modf(data.lux, &lx_dec);
 
     printf("lux:        %d.%02d lx\r\n", lx, (uint8_t) (lx_dec * DS_LUX_MULT_DEC));
     printf("volts:      %d.%04d V\r\n", v, (uint32_t) (v_dec * DS_VOLT_MULT_DEC));
@@ -145,4 +153,30 @@ void proc_temt6000(struct data_source d)
             lx, (uint32_t) (lx_dec * DS_LUX_MULT_DEC),
             v,  (uint32_t) (v_dec  * DS_VOLT_MULT_DEC));
     thingsboard_pub(tb_msg, 0, 1, 0);
+
+    return;
+}
+
+void proc_am2315c(struct data_source d)
+{
+    struct am2315c_data data;
+    char                tb_msg[64];
+    int32_t             h, t;
+    double              h_dec, t_dec;
+
+    d.read((void *) &data);
+    h     = (int32_t) data.hum;
+    h_dec = data.hum - h;
+    t     = data.temp;
+    t_dec = modf(data.temp, &t_dec);
+
+    printf("humedad:     %d.%02d %%\r\n", h, (uint8_t) (h_dec * DS_HUM_MULT_DEC));
+    printf("temperatura: %d.%02d ºC\r\n", t, (uint8_t) (t_dec * DS_TEMP_MULT_DEC));
+
+    sprintf(tb_msg, "{hum: %d.%02d, temp: %d.%02d}",
+            h, (uint32_t) (h_dec * DS_HUM_MULT_DEC),
+            t, (uint32_t) (t_dec * DS_TEMP_MULT_DEC));
+    thingsboard_pub(tb_msg, 0, 1, 0);
+
+    return;
 }
