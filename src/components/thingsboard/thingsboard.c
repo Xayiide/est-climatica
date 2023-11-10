@@ -14,7 +14,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
     switch (event->event_id) {
         case MQTT_EVENT_CONNECTED:
-            ESP_LOGI(TAG, "Connected to Thingsboard.");
+            ESP_LOGI(TAG, "Conectado a Thingsboard.");
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED.");
@@ -63,7 +63,7 @@ esp_err_t thingsboard_init(char *uri, uint16_t port, char *username)
     }
 
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Error initializing MQTT.");
+        ESP_LOGE(TAG, "Error inicializando MQTT.");
         /* TODO: informar más acerca del error */
     }
 
@@ -84,7 +84,7 @@ esp_err_t thingsboard_pub(char *data, int len, int qos, int retain)
         ret = ESP_FAIL;
 
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Error publishing data.");
+        ESP_LOGE(TAG, "Error publicando datos.");
         /* TODO: informar más acerca del error */
     }
 

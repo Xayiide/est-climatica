@@ -1,7 +1,6 @@
-#include <stdio.h>
-
 #include "esp_event.h"         /* esp_event_loop_create_default */
 #include "esp_err.h"           /* ESP_ERROR_CHECK               */
+#include "esp_log.h"           /* ESP_LOGE                      */
 
 #include "freertos/FreeRTOS.h" /* portTICK_PERIOD_MS            */
 #include "freertos/task.h"     /* vTaskDelay                    */
@@ -14,13 +13,12 @@
 #include "mqtt_client.h"
 
 /* Component includes */
-
-#include "temt6000.h"
 #include "ezconnect.h"
 #include "thingsboard.h"
 #include "datasrc.h"
-
 #include "am2315c.h"
+
+static const char *TAG = "[estación]";
 
 static void create_data_sources()
 {
@@ -38,8 +36,8 @@ static void create_data_sources()
 void app_main()
 {
 
-    printf("[+] Free memory: %d bytes.\n", esp_get_free_heap_size());
-    printf("[+] IDF version: %s.\n", esp_get_idf_version());
+    ESP_LOGI(TAG, "[+] Memoria libre: %d bytes.\n", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "[+] Versión IDF: %s.\n", esp_get_idf_version());
 
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
@@ -56,7 +54,7 @@ void app_main()
 
     create_data_sources();
     if (ds_start() != ESP_OK) {
-        printf("ERROR STARTING DATA SOURCES\n");
+        ESP_LOGE(TAG, "Error inicializando las fuentes de datos.");
         while (1);
     }
 }

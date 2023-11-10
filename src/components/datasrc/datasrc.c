@@ -33,7 +33,8 @@ esp_err_t ds_start()
     }
     else {
         if (ds_init_all_sources() == ESP_OK)
-            xTaskCreate(ds_periodic_task, "datasrc_task", 1024, NULL, 10, NULL);
+            xTaskCreate(ds_periodic_task, "ds_periodic_task",
+                        2048, NULL, 10, NULL);
         else
             ret = ESP_FAIL;
     }
@@ -141,18 +142,20 @@ void proc_temt6000(struct data_source d)
 
     d.read((void *) &data); /* o algo así */
 
-    v      = (int32_t) data.volts;
-    v_dec  = data.volts - v;
-    lx     = data.lux;
-    lx_dec = modf(data.lux, &lx_dec);
+    if (data.lux != -1.0) {
+        v      = (int32_t) data.volts;
+        v_dec  = data.volts - v;
+        lx     = data.lux;
+        lx_dec = modf(data.lux, &lx_dec);
 
-    printf("lux:        %d.%02d lx\r\n", lx, (uint8_t) (lx_dec * DS_LUX_MULT_DEC));
-    printf("volts:      %d.%04d V\r\n", v, (uint32_t) (v_dec * DS_VOLT_MULT_DEC));
+        printf("[ds] lux:        %d.%02d lx\r\n", lx, (uint8_t) (lx_dec * DS_LUX_MULT_DEC));
+        printf("[ds] volts:      %d.%04d V\r\n", v, (uint32_t) (v_dec * DS_VOLT_MULT_DEC));
 
-    sprintf(tb_msg, "{lux: %d.%02d, volts: %d.%04d}",
-            lx, (uint32_t) (lx_dec * DS_LUX_MULT_DEC),
-            v,  (uint32_t) (v_dec  * DS_VOLT_MULT_DEC));
-    thingsboard_pub(tb_msg, 0, 1, 0);
+        sprintf(tb_msg, "{lux: %d.%02d, volts: %d.%04d}",
+                lx, (uint32_t) (lx_dec * DS_LUX_MULT_DEC),
+                v,  (uint32_t) (v_dec  * DS_VOLT_MULT_DEC));
+        thingsboard_pub(tb_msg, 0, 1, 0);
+    }
 
     return;
 }
@@ -165,18 +168,22 @@ void proc_am2315c(struct data_source d)
     double              h_dec, t_dec;
 
     d.read((void *) &data);
-    h     = (int32_t) data.hum;
-    h_dec = data.hum - h;
-    t     = data.temp;
-    t_dec = modf(data.temp, &t_dec);
 
-    printf("humedad:     %d.%02d %%\r\n", h, (uint8_t) (h_dec * DS_HUM_MULT_DEC));
-    printf("temperatura: %d.%02d ºC\r\n", t, (uint8_t) (t_dec * DS_TEMP_MULT_DEC));
+    if (data.hum != -1.0 && data.temp != -273.15)
+    {
+        h     = (int32_t) data.hum;
+        h_dec = data.hum - h;
+        t     = data.temp;
+        t_dec = modf(data.temp, &t_dec);
 
-    sprintf(tb_msg, "{hum: %d.%02d, temp: %d.%02d}",
-            h, (uint32_t) (h_dec * DS_HUM_MULT_DEC),
-            t, (uint32_t) (t_dec * DS_TEMP_MULT_DEC));
-    thingsboard_pub(tb_msg, 0, 1, 0);
+        printf("[ds] humedad:     %d.%02d %%\r\n", h, (uint8_t) (h_dec * DS_HUM_MULT_DEC));
+        printf("[ds] temperatura: %d.%02d ºC\r\n", t, (uint8_t) (t_dec * DS_TEMP_MULT_DEC));
+
+        sprintf(tb_msg, "{hum: %d.%02d, temp: %d.%02d}",
+                h, (uint32_t) (h_dec * DS_HUM_MULT_DEC),
+                t, (uint32_t) (t_dec * DS_TEMP_MULT_DEC));
+        thingsboard_pub(tb_msg, 0, 1, 0);
+    }
 
     return;
 }

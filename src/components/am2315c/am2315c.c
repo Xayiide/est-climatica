@@ -8,12 +8,13 @@
 #include "esp_log.h"           /* ESP_LOGE           */
 #include "esp_err.h"           /* ESP_ERROR_CHECK    */
 
+#include "aux.h"
 #include "include/am2315c.h"
 
 static const char *TAG = "[am2315c]";
 
-static esp_err_t read_status (uint8_t *status);
 static esp_err_t read_sensor (double *h, double *t);
+static esp_err_t read_status (uint8_t *status);
 static esp_err_t request_data(double *h, double *t);
 
 
@@ -60,13 +61,32 @@ void am2315c_read(void *data)
 
 
 /* Funciones estáticas */
+esp_err_t read_sensor(double *h, double *t)
+{
+    esp_err_t ret    = ESP_OK;
+    uint8_t   status = 0;
+
+    ret = read_status(&status);
+    if (ret == ESP_OK) {
+        if ((status & 0x18) != 0x18) {
+            /* TODO: reinicia los registros 0x1B, 0x1C y 0x1E */
+            ESP_LOGW(TAG, "El estado es incorrecto: 0x%X.", status);
+        }
+    }
+
+    vTaskDelay(10 / portTICK_RATE_MS);
+    ret = request_data(h, t);
+
+    return ret;
+}
+
 esp_err_t read_status(uint8_t *status)
 {
     esp_err_t        ret = ESP_OK;
     i2c_cmd_handle_t cmd;
     uint8_t          status_cmd = 0x71;
 
-    /* Primero envío el byte 0x78 según la hoja de datos */
+    /* Primero envío el byte 0x71 según la hoja de datos */
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd,
@@ -78,7 +98,8 @@ esp_err_t read_status(uint8_t *status)
     i2c_cmd_link_delete(cmd);
 
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Error al enviar petición de estado (0x78).");
+        ESP_LOGW(TAG, "Error al enviar petición de estado (0x71).");
+        aux_i2c_err(TAG, ret);
         return ret;
     }
 
@@ -95,36 +116,18 @@ esp_err_t read_status(uint8_t *status)
 
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Error recibiendo estado del sensor.");
-        return ret; /* Mejor ser explícito que implícito */
+        aux_i2c_err(TAG, ret);
+        return ret; /* Mejor explícito que implícito */
     }
-
-    return ret;
-}
-
-esp_err_t read_sensor(double *h, double *t)
-{
-    esp_err_t ret = ESP_OK;
-    uint8_t   status;
-
-    ESP_ERROR_CHECK(read_status(&status));
-    if ((status & 0x18) != 0x18) {
-        /* TODO: reinicia los registros 0x1B, 0x1C y 0x1E */
-        ESP_LOGE(TAG, "Error: el estado es incorrecto (0x%X).", status);
-        ret = ESP_FAIL;
-        return ret;
-    }
-
-    vTaskDelay(10 / portTICK_RATE_MS);
-    ESP_ERROR_CHECK(request_data(h, t));
 
     return ret;
 }
 
 esp_err_t request_data(double *h, double *t)
 {
-    esp_err_t        ret = ESP_OK;
     i2c_cmd_handle_t cmd;
-    uint8_t          status;
+    esp_err_t        ret    = ESP_OK;
+    uint8_t          status = 0;
     uint8_t          req_b1 = 0xAC;
     uint8_t          req_b2 = 0x33;
     uint8_t          req_b3 = 0x00;
@@ -145,12 +148,19 @@ esp_err_t request_data(double *h, double *t)
     ret = i2c_master_cmd_begin(AM2315C_I2C_NUM, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
 
-    vTaskDelay(80 / portTICK_RATE_MS); /* FIXME: Es necesario con el while? */
-    ESP_ERROR_CHECK(read_status(&status));
-    while ((status & 0x80) == 0x80) {
-        vTaskDelay(10 / portTICK_RATE_MS);
-        read_status(&status);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al enviar petición de datos.");
+        aux_i2c_err(TAG, ret);
+        return ret;
     }
+
+    vTaskDelay(80 / portTICK_RATE_MS); /* FIXME: Es necesario con el while? */
+    ret = read_status(&status);
+    while (((status & 0x80) == 0x80) && (ret == ESP_OK)) {
+        vTaskDelay(10 / portTICK_RATE_MS);
+        ret = read_status(&status);
+    }
+
 
     /* Ahora podemos leer 6 bytes */
     cmd = i2c_cmd_link_create();
@@ -169,13 +179,18 @@ esp_err_t request_data(double *h, double *t)
     ret = i2c_master_cmd_begin(AM2315C_I2C_NUM, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
 
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al recibir datos.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+
     /* Tenemos todos los bytes. Convertimos sus valores */
     hum = data[1];
     hum <<= 8;
     hum += data[2];
     hum <<= 4;
     hum += (data[3] >> 4);
-    printf("[hum : 0x%X\n", hum);
     *h  =  hum * 9.53674316406e-5; /* (hum / 1048576) * 100; */
 
     temp = (data[3] & 0x0F);
@@ -183,10 +198,9 @@ esp_err_t request_data(double *h, double *t)
     temp += data[4];
     temp <<= 8;
     temp += data[5];
-    printf("[temp: 0x%X\n", temp);
     *t   = temp * 1.907348632812e-4 - 50; /* (temp / 1048576) * 200 - 50 */
 
     /* TODO: Utilizar el CRC */
 
-    return ret; /* TODO: COMPROBAR ERRORES EN ESTA FUNCIÓN */
+    return ret;
 }
