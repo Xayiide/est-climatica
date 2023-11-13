@@ -132,7 +132,10 @@ char *ds_srcname_to_str(enum srcname name)
     return ret;
 }
 
-void proc_temt6000(struct data_source d)
+
+
+
+static void proc_temt6000(struct data_source d)
 {
     struct temt6000_data data;
     char                 tb_msg[64];
@@ -160,7 +163,7 @@ void proc_temt6000(struct data_source d)
     return;
 }
 
-void proc_am2315c(struct data_source d)
+static void proc_am2315c(struct data_source d)
 {
     struct am2315c_data data;
     char                tb_msg[64];

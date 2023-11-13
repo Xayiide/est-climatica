@@ -1,10 +1,8 @@
 #ifndef _AM2315C_H_
 #define _AM2315C_H_
 
-#include <stdint.h> /* borrar */
-
-#include "esp_err.h"
-#include "driver/i2c.h"
+#include "esp_err.h"    /* esp_err_t */
+#include "driver/i2c.h" /* I2C_NUM_0 */
 
 #define AM2315C_ADDRESS  0x38
 #define AM2315C_I2C_NUM  I2C_NUM_0

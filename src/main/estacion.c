@@ -36,25 +36,25 @@ static void create_data_sources()
 void app_main()
 {
 
-    ESP_LOGI(TAG, "[+] Memoria libre: %d bytes.\n", esp_get_free_heap_size());
-    ESP_LOGI(TAG, "[+] Versión IDF: %s.\n", esp_get_idf_version());
+    ESP_LOGI(TAG, "Memoria libre: %d bytes.\n", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "Versión IDF: %s.\n", esp_get_idf_version());
 
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));
-    ESP_ERROR_CHECK(ezconnect());
+    //ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));
+    //ESP_ERROR_CHECK(ezconnect());
     
     
     /* mqtt://username:password@mqtt.thingsbord.cloud:1883 */
-    ESP_ERROR_CHECK(thingsboard_init("mqtt://mqtt.thingsboard.cloud",
-                                     (uint16_t) 1883,
-                                     "USERNAME"));
+    //ESP_ERROR_CHECK(thingsboard_init("mqtt://mqtt.thingsboard.cloud",
+    //                                 (uint16_t) 1883,
+    //                                 "USERNAME"));
 
-    create_data_sources();
-    if (ds_start() != ESP_OK) {
-        ESP_LOGE(TAG, "Error inicializando las fuentes de datos.");
-        while (1);
-    }
+    //create_data_sources();
+    //if (ds_start() != ESP_OK) {
+    //    ESP_LOGE(TAG, "Error inicializando las fuentes de datos.");
+    //    while (1);
+    //}
 }

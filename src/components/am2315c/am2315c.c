@@ -1,21 +1,21 @@
-#include <stdio.h>             /* borrar - printf */
 #include <stdint.h>            /* uint_t */
 #include <stddef.h>            /* size_t */
 
 #include "freertos/FreeRTOS.h" /* portTICK_PERIOD_MS */
 #include "freertos/task.h"     /* vTaskDelay         */
 #include "driver/i2c.h"        /* i2c                */
+#include "driver/gpio.h"       /* GPIO_PULLUP_ENABLE */
 #include "esp_log.h"           /* ESP_LOGE           */
 #include "esp_err.h"           /* ESP_ERROR_CHECK    */
 
-#include "aux.h"
+#include "aux.h"               /* aux_i2c_err        */
 #include "include/am2315c.h"
 
 static const char *TAG = "[am2315c]";
 
-static esp_err_t read_sensor (double *h, double *t);
-static esp_err_t read_status (uint8_t *status);
-static esp_err_t request_data(double *h, double *t);
+static esp_err_t am2315c_read_sensor (double *h, double *t);
+static esp_err_t am2315c_read_status (uint8_t *status);
+static esp_err_t am2315c_request_data(double *h, double *t);
 
 
 esp_err_t am2315c_init()
@@ -27,9 +27,9 @@ esp_err_t am2315c_init()
 
     i2c_config.mode             = I2C_MODE_MASTER;
     i2c_config.sda_io_num       = AM2315C_SDA_IO;
-    i2c_config.sda_pullup_en    = 1;
+    i2c_config.sda_pullup_en    = GPIO_PULLUP_ENABLE;
     i2c_config.scl_io_num       = AM2315C_SCL_IO;
-    i2c_config.scl_pullup_en    = 1;
+    i2c_config.scl_pullup_en    = GPIO_PULLUP_ENABLE;
     i2c_config.clk_stretch_tick = 400;
 
     ESP_ERROR_CHECK(i2c_driver_install(AM2315C_I2C_NUM, i2c_config.mode));
@@ -43,7 +43,7 @@ void am2315c_read(void *data)
     struct am2315c_data *d = (struct am2315c_data *) data;
     double h, t;
 
-    if (read_sensor(&h, &t) == ESP_OK) {
+    if (am2315c_read_sensor(&h, &t) == ESP_OK) {
         d->hum  = h;
         d->temp = t;
     }
@@ -61,12 +61,12 @@ void am2315c_read(void *data)
 
 
 /* Funciones estáticas */
-esp_err_t read_sensor(double *h, double *t)
+static esp_err_t am2315c_read_sensor(double *h, double *t)
 {
     esp_err_t ret    = ESP_OK;
     uint8_t   status = 0;
 
-    ret = read_status(&status);
+    ret = am2315c_read_status(&status);
     if (ret == ESP_OK) {
         if ((status & 0x18) != 0x18) {
             /* TODO: reinicia los registros 0x1B, 0x1C y 0x1E */
@@ -75,12 +75,12 @@ esp_err_t read_sensor(double *h, double *t)
     }
 
     vTaskDelay(10 / portTICK_RATE_MS);
-    ret = request_data(h, t);
+    ret = am2315c_request_data(h, t);
 
     return ret;
 }
 
-esp_err_t read_status(uint8_t *status)
+static esp_err_t am2315c_read_status(uint8_t *status)
 {
     esp_err_t        ret = ESP_OK;
     i2c_cmd_handle_t cmd;
@@ -123,7 +123,7 @@ esp_err_t read_status(uint8_t *status)
     return ret;
 }
 
-esp_err_t request_data(double *h, double *t)
+static esp_err_t am2315c_request_data(double *h, double *t)
 {
     i2c_cmd_handle_t cmd;
     esp_err_t        ret    = ESP_OK;
@@ -155,10 +155,10 @@ esp_err_t request_data(double *h, double *t)
     }
 
     vTaskDelay(80 / portTICK_RATE_MS); /* FIXME: Es necesario con el while? */
-    ret = read_status(&status);
+    ret = am2315c_read_status(&status);
     while (((status & 0x80) == 0x80) && (ret == ESP_OK)) {
         vTaskDelay(10 / portTICK_RATE_MS);
-        ret = read_status(&status);
+        ret = am2315c_read_status(&status);
     }
 
 
