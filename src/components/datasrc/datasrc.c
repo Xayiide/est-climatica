@@ -14,14 +14,16 @@
 #include "thingsboard.h"
 #include "temt6000.h"
 #include "am2315c.h"
+//#include "veml7700.h"
 
 static const char *TAG = "[datasrc]";
 
 static struct data_source g_sources[DS_MAX_SOURCES];
 static uint32_t           g_num_sources = 0;
 
-static void proc_temt6000(struct data_source d);
-static void proc_am2315c (struct data_source d);
+static void ds_proc_temt6000(struct data_source d);
+static void ds_proc_am2315c (struct data_source d);
+//static void ds_proc_veml7700(struct data_source d);
 
 esp_err_t ds_start()
 {
@@ -92,10 +94,13 @@ void ds_periodic_task()
             d = g_sources[i];
             switch(d.name) {
                 case DS_TEMT6000:
-                    proc_temt6000(d);
+                    ds_proc_temt6000(d);
                     break;
                 case DS_AM2315C:
-                    proc_am2315c(d);
+                    ds_proc_am2315c(d);
+                    break;
+                case DS_VEML7700:
+                    //ds_proc_veml7700(d);
                     break;
                 case DS_OTHER:
                     break;
@@ -121,6 +126,9 @@ char *ds_srcname_to_str(enum srcname name)
         case DS_AM2315C:
             ret = "AM2315C";
             break;
+        case DS_VEML7700:
+            ret = "VEML7700";
+            break;
         case DS_OTHER:
             ret = "otherdevice";
             break;
@@ -135,7 +143,7 @@ char *ds_srcname_to_str(enum srcname name)
 
 
 
-static void proc_temt6000(struct data_source d)
+static void ds_proc_temt6000(struct data_source d)
 {
     struct temt6000_data data;
     char                 tb_msg[64];
@@ -163,7 +171,7 @@ static void proc_temt6000(struct data_source d)
     return;
 }
 
-static void proc_am2315c(struct data_source d)
+static void ds_proc_am2315c(struct data_source d)
 {
     struct am2315c_data data;
     char                tb_msg[64];
@@ -190,3 +198,38 @@ static void proc_am2315c(struct data_source d)
 
     return;
 }
+
+#if 0
+static void ds_proc_veml7700(struct data_source d)
+{
+    struct veml7700_data data;
+    //char                 tb_msg[64];
+    int32_t              l, rl, w, rw;
+    double               l_dec, rl_dec, w_dec, rw_dec;
+
+    d.read((void *) &data);
+
+    if (data.lux != -1.0 && data.raw_als != -1.0 &&
+        data.white != -1.0 && data.raw_white != -1.0) {
+        l  = (int32_t) data.lux;
+        rl = (int32_t) data.raw_als;
+        w  = (int32_t) data.white;
+        rw = (int32_t) data.raw_white;
+
+        l_dec  = data.lux - l;
+        rl_dec = data.raw_als - rl;
+        w_dec  = data.white - w;
+        rw_dec = data.raw_white - rw;
+
+        printf("[ds] Raw lux:   %d.%02d \r\n", rl, (uint8_t) (rl_dec * 100));
+        printf("[ds] Lux:       %d.%02d \r\n", l, (uint8_t) (l_dec * 100));
+        printf("[ds] Raw white: %d.%02d \r\n", rw, (uint8_t) (rw_dec * 100));
+        printf("[ds] White:     %d.%02d \r\n", w, (uint8_t) (w_dec * 100));
+
+        /* TODO: sprintf */
+        /* TODO: enviar a thingsboard */
+    }
+
+    return;
+}
+#endif

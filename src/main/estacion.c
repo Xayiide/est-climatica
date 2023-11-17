@@ -17,6 +17,11 @@
 #include "thingsboard.h"
 #include "datasrc.h"
 #include "am2315c.h"
+#include "diagnosis.h"
+#include "veml7700.h"
+
+#include "driver/i2c.h"
+#include "driver/gpio.h"
 
 static const char *TAG = "[estación]";
 
@@ -27,20 +32,21 @@ static void create_data_sources()
                                      temt6000_read,
                                      1)); */
 
-    ESP_ERROR_CHECK(ds_create_source(DS_AM2315C,
+    /*ESP_ERROR_CHECK(ds_create_source(DS_AM2315C,
                                      am2315c_init,
                                      am2315c_read,
-                                     1));
+                                     1)); */
+
+    //ESP_ERROR_CHECK(ds_create_source(DS_VEML7700,
+    //                                 veml7700_init,
+    //                                 veml7700_read,
+    //                                 1));
 }
 
 void app_main()
 {
+    diag_init();
 
-    ESP_LOGI(TAG, "Memoria libre: %d bytes.\n", esp_get_free_heap_size());
-    ESP_LOGI(TAG, "Versión IDF: %s.\n", esp_get_idf_version());
-
-    ESP_ERROR_CHECK(nvs_flash_init());
-    ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     //ESP_ERROR_CHECK(ez_set_connection_info("SSID", "PASS"));

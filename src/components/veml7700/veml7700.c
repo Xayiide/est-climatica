@@ -1,10 +1,11 @@
+#include <math.h>         /* ceil */
 #include "driver/i2c.h"   /* i2c                 */
 #include "driver/gpio.h"  /* GPIO_PULLUP_ENABLE  */
 #include "esp_log.h"      /* ESP_LOGE            */
 #include "esp_err.h"      /* esp_err_t           */
 
 #include "aux.h"          /* aux_i2c_err, NELEMS */
-#include "inc/veml7700.h"
+#include "include/veml7700.h"
 
 
 static const char *TAG = "[veml7700]";
@@ -46,6 +47,8 @@ static const double maximums_table[6][4] = {
 /* TODO: Esto puede hacerse de otra forma? */
 static struct veml7700_config g_cfg;
 
+
+
 static struct veml7700_config veml7700_default_config();
 static double    veml7700_get_resolution (struct veml7700_config cfg);
 static double    veml7700_get_maximum_lux(struct veml7700_config cfg);
@@ -58,7 +61,13 @@ static esp_err_t veml7700_read_reg (uint8_t reg_addr, uint16_t *data);
 static esp_err_t veml7700_read_als  (double *raw, double *lux);
 static esp_err_t veml7700_read_white(double *raw, double *white);
 
+static esp_err_t veml7700_reconfigure(double *lux);
+
 static uint8_t   indexOf(uint8_t, const uint8_t *, uint8_t);
+
+
+
+
 
 esp_err_t veml7700_init()
 {
@@ -109,6 +118,11 @@ void veml7700_read(void *data)
 
 
 
+/* TODO: Default configuration:
+ * Gain: 1/8
+ * Integration time: 25 ms
+ * This is to achieve a maximum illumination of 120 796 lx
+ */
 static struct veml7700_config veml7700_default_config()
 {
     struct veml7700_config cfg;
@@ -261,6 +275,15 @@ static esp_err_t veml7700_read_white(double *raw, double *white)
 
     return ret;
 }
+
+static esp_err_t veml7700_reconfigure(double *lux)
+{
+    esp_err_t ret = ESP_OK;
+
+    return ret;
+}
+
+
 
 /* XXX Si len es 255 no puede distinguirse el error de un índice válido*/
 static uint8_t indexOf(uint8_t elem, const uint8_t *arr, uint8_t len)

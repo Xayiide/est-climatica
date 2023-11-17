@@ -23,6 +23,7 @@ enum srcname
 {
     DS_TEMT6000,
     DS_AM2315C,
+    DS_VEML7700,
     DS_OTHER
 };
 
