@@ -14,6 +14,8 @@ Se utiliza para medir temperatura y humedad. Una librería para Arduino se encue
 - [Guía de Adafruit con Arduino](https://learn.adafruit.com/adafruit-veml7700/arduino).
 - [Repositorio de la librería para Arduino](https://github.com/adafruit/Adafruit_VEML7700).
 
+Para hacer el componente dedicado a este sensor, me he ayudado inmensamente del [repositorio](https://github.com/kgrozdanovski/veml7700-esp-idf) del usuario [Kgrozdanovski](https://github.com/kgrozdanovski/), que hace una librería de este sensor usando el SDK de Espressif.
+
 ## Ganancia
 En este sensor mencionan la ganancia en varios lados, porque es configurable. La ganancia es una magnitud que mide cuánto se amplifica o se disminuye una señal (el ruido es tb una señal). Cuando el sensor mida valores muy bajos de luz, interesará una ganancia mayor, porque de esta forma obtendremos más precisión en las medidas. El caso contrario también aplica: con luz más intensa, una menor ganancia.
 

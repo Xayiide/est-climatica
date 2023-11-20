@@ -10,8 +10,6 @@
 
 #include "esp_netif.h"         /* esp_netif_init                */
 
-#include "mqtt_client.h"
-
 /* Component includes */
 #include "ezconnect.h"
 #include "thingsboard.h"
@@ -19,9 +17,6 @@
 #include "am2315c.h"
 #include "diagnosis.h"
 #include "veml7700.h"
-
-#include "driver/i2c.h"
-#include "driver/gpio.h"
 
 static const char *TAG = "[estación]";
 
@@ -63,4 +58,7 @@ void app_main()
     //    ESP_LOGE(TAG, "Error inicializando las fuentes de datos.");
     //    while (1);
     //}
+
+    ESP_ERROR_CHECK(veml7700_init());
+
 }

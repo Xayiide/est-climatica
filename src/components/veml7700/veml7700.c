@@ -7,17 +7,20 @@
 #include "aux.h"          /* aux_i2c_err, NELEMS */
 #include "include/veml7700.h"
 
+#define VEML7700_GAIN_VALUES 4
+#define VEML7700_IT_VALUES   6
+
 
 static const char *TAG = "[veml7700]";
 
-static const uint8_t gain_values[4] = {
+static const uint8_t gain_values[VEML7700_GAIN_VALUES] = {
     VEML7700_GAIN_2,
     VEML7700_GAIN_1,
-    VEML7700_GAIN_1_8,
-    VEML7700_GAIN_1_4
+    VEML7700_GAIN_1_4,
+    VEML7700_GAIN_1_8
 };
 
-static const uint8_t it_values[6] = {
+static const uint8_t it_values[VEML7700_IT_VALUES] = {
     VEML7700_IT_800MS,
     VEML7700_IT_400MS,
     VEML7700_IT_200MS,
@@ -26,7 +29,7 @@ static const uint8_t it_values[6] = {
     VEML7700_IT_25MS
 };
 
-static const double res_table[6][4] = {
+static const double res_table[VEML7700_IT_VALUES][VEML7700_GAIN_VALUES] = {
     {0.0036, 0.0072, 0.0288, 0.0576},
     {0.0072, 0.0144, 0.0576, 0.1152},
     {0.0144, 0.0288, 0.1152, 0.2304},
@@ -35,7 +38,7 @@ static const double res_table[6][4] = {
     {0.1152, 0.2304, 0.9216, 1.8432}
 };
 
-static const double maximums_table[6][4] = {
+static const uint32_t maximums_table[VEML7700_IT_VALUES][VEML7700_GAIN_VALUES] = {
     {236,  472,   1887,  3775},
     {472,  944,   3775,  7550},
     {944,  1887,  7550,  15099},
@@ -127,7 +130,7 @@ static struct veml7700_config veml7700_default_config()
 {
     struct veml7700_config cfg;
     cfg.gain           = VEML7700_GAIN_1_8;
-    cfg.it             = VEML7700_IT_100MS;
+    cfg.it             = VEML7700_IT_25MS;
     cfg.persistence    = VEML7700_PERS_1;
     cfg.int_en         = 0;
     cfg.shutdown       = VEML7700_POWERSAVE_MODE1;
@@ -143,18 +146,18 @@ static struct veml7700_config veml7700_default_config()
 
 static double veml7700_get_resolution(struct veml7700_config cfg)
 {
-    int gain_index = indexOf(cfg.gain, gain_values, 4);
-    int it_index   = indexOf(cfg.it, it_values, 6);
+    int gain_index = indexOf(cfg.gain, gain_values, VEML7700_GAIN_VALUES);
+    int it_index   = indexOf(cfg.it, it_values, VEML7700_IT_VALUES);
 
     return res_table[it_index][gain_index];
 }
 
 static double veml7700_get_maximum_lux(struct veml7700_config cfg)
 {
-    int gain_index = indexOf(cfg.gain, gain_values, 4);
-    int it_index   = indexOf(cfg.it, it_values, 6);
+    int gain_index = indexOf(cfg.gain, gain_values, VEML7700_GAIN_VALUES);
+    int it_index   = indexOf(cfg.it, it_values, VEML7700_IT_VALUES);
 
-    return maximums_table[it_index][gain_index];
+    return (double) maximums_table[it_index][gain_index];
 }
 
 /* Configuration register: 16 bits
@@ -289,9 +292,9 @@ static esp_err_t veml7700_reconfigure(double *lux)
 static uint8_t indexOf(uint8_t elem, const uint8_t *arr, uint8_t len)
 {
     while (len != 0) {
+        len--;
         if (arr[len] == elem)
             return len;
-        len--;
     }
 
     return 0xFF;
