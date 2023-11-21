@@ -133,7 +133,7 @@ static esp_err_t am2315c_request_data(double *h, double *t)
     uint8_t          req_b3 = 0x00;
 
     uint8_t          data[7];
-    uint32_t         temp, hum;
+    uint32_t         temp = 0, hum = 0;
 
     /* Envía 0xAC, 0x33 y 0x00 */
     cmd = i2c_cmd_link_create();

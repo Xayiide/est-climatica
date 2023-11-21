@@ -60,5 +60,13 @@ void app_main()
     //}
 
     ESP_ERROR_CHECK(veml7700_init());
+    struct veml7700_data d;
+    while (1) {
+        veml7700_read((void *) &d);
+
+
+        printf("lux: %f || white: %f\n", d.lux, d.white);
+        vTaskDelay(2000 / portTICK_RATE_MS);
+    }
 
 }

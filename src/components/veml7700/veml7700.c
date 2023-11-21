@@ -54,15 +54,21 @@ static struct veml7700_config g_cfg;
 
 static struct veml7700_config veml7700_default_config();
 static double    veml7700_get_resolution (struct veml7700_config cfg);
-static double    veml7700_get_maximum_lux(struct veml7700_config cfg);
 static esp_err_t veml7700_send_config    (struct veml7700_config cfg);
+
+/* lux maximos con la configuración actual */
+static double    veml7700_current_max_lux(struct veml7700_config cfg);
+/* valor más alto posible de lux máximos (120 796) */
+static double    veml7700_highest_max_lux(struct veml7700_config cfg);
+/* valor más bajo posible de lux máximos (236) */
+static double    veml7700_lowest_max_lux (struct veml7700_config cfg);
 
 
 static esp_err_t veml7700_write_reg(uint8_t reg_addr, uint16_t data);
 static esp_err_t veml7700_read_reg (uint8_t reg_addr, uint16_t *data);
 
-static esp_err_t veml7700_read_als  (double *raw, double *lux);
-static esp_err_t veml7700_read_white(double *raw, double *white);
+static esp_err_t veml7700_read_als  (double *lux);
+static esp_err_t veml7700_read_white(double *white);
 
 static esp_err_t veml7700_reconfigure(double *lux);
 
@@ -96,20 +102,16 @@ esp_err_t veml7700_init()
 void veml7700_read(void *data)
 {
     struct veml7700_data *d = (struct veml7700_data *) data;
-    double raw_lux, raw_white, lux, white;
+    double lux, white;
 
-    if ((veml7700_read_als(&raw_lux, &lux) == ESP_OK) &&
-        (veml7700_read_white(&raw_white, &white) == ESP_OK)) {
-        d->raw_als   = raw_lux;
-        d->lux       = lux;
-        d->raw_white = raw_white;
-        d->white     = white;
+    if ((veml7700_read_als(&lux) == ESP_OK) &&
+        (veml7700_read_white(&white) == ESP_OK)) {
+        d->lux   = lux;
+        d->white = white;
     }
     else {
-        d->raw_als   = -1.0;
-        d->lux       = -1.0;
-        d->white     = -1.0;
-        d->raw_white = -1.0;
+        d->lux   = -1.0;
+        d->white = -1.0;
     }
 
     data = d;
@@ -129,8 +131,8 @@ void veml7700_read(void *data)
 static struct veml7700_config veml7700_default_config()
 {
     struct veml7700_config cfg;
-    cfg.gain           = VEML7700_GAIN_1_8;
-    cfg.it             = VEML7700_IT_25MS;
+    cfg.gain           = VEML7700_GAIN_1;
+    cfg.it             = VEML7700_IT_800MS;
     cfg.persistence    = VEML7700_PERS_1;
     cfg.int_en         = 0;
     cfg.shutdown       = VEML7700_POWERSAVE_MODE1;
@@ -139,7 +141,7 @@ static struct veml7700_config veml7700_default_config()
     cfg.addr           = VEML7700_ADDRESS;
 
     cfg.res     = veml7700_get_resolution(cfg);
-    cfg.max_lux = veml7700_get_maximum_lux(cfg);
+    cfg.max_lux = veml7700_current_max_lux(cfg);
 
     return cfg;
 }
@@ -150,14 +152,6 @@ static double veml7700_get_resolution(struct veml7700_config cfg)
     int it_index   = indexOf(cfg.it, it_values, VEML7700_IT_VALUES);
 
     return res_table[it_index][gain_index];
-}
-
-static double veml7700_get_maximum_lux(struct veml7700_config cfg)
-{
-    int gain_index = indexOf(cfg.gain, gain_values, VEML7700_GAIN_VALUES);
-    int it_index   = indexOf(cfg.it, it_values, VEML7700_IT_VALUES);
-
-    return (double) maximums_table[it_index][gain_index];
 }
 
 /* Configuration register: 16 bits
@@ -179,12 +173,38 @@ static esp_err_t veml7700_send_config(struct veml7700_config cfg)
                 (cfg.it << 6) |
                 (cfg.persistence << 4) |
                 (cfg.int_en << 1) |
-                (cfg.shutdown));
+                (cfg.shutdown << 0));
 
+
+    ESP_LOGI(TAG, "Configuration bits: 0x%X", cfg_bits);
     ret = veml7700_write_reg(VEML7700_ALS_CONF, cfg_bits);
 
     return ret;
 }
+
+
+
+
+static double veml7700_current_max_lux(struct veml7700_config cfg)
+{
+    int gain_index = indexOf(cfg.gain, gain_values, VEML7700_GAIN_VALUES);
+    int it_index   = indexOf(cfg.it, it_values, VEML7700_IT_VALUES);
+
+    return (double) maximums_table[it_index][gain_index];
+}
+
+static double veml7700_highest_max_lux(struct veml7700_config cfg)
+{
+    return (double)
+            maximums_table[VEML7700_IT_VALUES - 1][VEML7700_GAIN_VALUES - 1];
+}
+
+static double veml7700_lowest_max_lux(struct veml7700_config cfg)
+{
+    return (double) maximums_table[0][0];
+}
+
+
 
 static esp_err_t veml7700_write_reg(uint8_t reg_addr, uint16_t data)
 {
@@ -198,7 +218,7 @@ static esp_err_t veml7700_write_reg(uint8_t reg_addr, uint16_t data)
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd,
-                          (VEML7700_ADDRESS << 1 | I2C_MASTER_WRITE),
+                          (g_cfg.addr << 1 | I2C_MASTER_WRITE),
                           VEML7700_ACK_EN);
     i2c_master_write_byte(cmd,
                           reg_addr,
@@ -207,7 +227,8 @@ static esp_err_t veml7700_write_reg(uint8_t reg_addr, uint16_t data)
                      reg_data, 2,
                      VEML7700_ACK_EN);
     i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(VEML7700_I2C_NUM, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_cmd_begin(g_cfg.i2c_master_num, cmd, 1000 / portTICK_PERIOD_MS);
+
     i2c_cmd_link_delete(cmd);
 
     return ret;
@@ -234,16 +255,19 @@ static esp_err_t veml7700_read_reg(uint8_t reg_addr, uint16_t *data)
                           VEML7700_ACK_EN);
     i2c_master_read(cmd, reg_data, 2, I2C_MASTER_LAST_NACK);
     i2c_master_stop(cmd);
-    i2c_cmd_link_delete(cmd);
 
-    ret = i2c_master_cmd_begin(VEML7700_I2C_NUM, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_cmd_begin(VEML7700_I2C_NUM, cmd, 2000 / portTICK_PERIOD_MS);
+
+    i2c_cmd_link_delete(cmd);
 
     *data = reg_data[0] | (reg_data[1] << 8); /* Cambiar el orden LSB y MSB */
 
     return ret;
 }
 
-static esp_err_t veml7700_read_als(double *raw, double *lux)
+
+
+static esp_err_t veml7700_read_als(double *lux)
 {
     esp_err_t ret = ESP_OK;
     uint16_t  read_data;
@@ -255,13 +279,12 @@ static esp_err_t veml7700_read_als(double *raw, double *lux)
         return ret;
     }
 
-    *raw = read_data;
     *lux = read_data * g_cfg.res;
 
     return ret;
 }
 
-static esp_err_t veml7700_read_white(double *raw, double *white)
+static esp_err_t veml7700_read_white(double *white)
 {
     esp_err_t ret = ESP_OK;
     uint16_t  read_data;
@@ -273,11 +296,12 @@ static esp_err_t veml7700_read_white(double *raw, double *white)
         return ret;
     }
 
-    *raw   = read_data;
     *white = read_data * g_cfg.res;
 
     return ret;
 }
+
+
 
 static esp_err_t veml7700_reconfigure(double *lux)
 {
