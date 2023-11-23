@@ -67,10 +67,11 @@ static double    veml7700_lowest_max_lux (struct veml7700_config cfg);
 static esp_err_t veml7700_write_reg(uint8_t reg_addr, uint16_t data);
 static esp_err_t veml7700_read_reg (uint8_t reg_addr, uint16_t *data);
 
-static esp_err_t veml7700_read_als  (double *lux);
+static esp_err_t veml7700_read_als  (double *als);
+static esp_err_t veml7700_read_lux  (double *lux);
 static esp_err_t veml7700_read_white(double *white);
+static esp_err_t veml7700_auto_lux  (double *lux);
 
-static esp_err_t veml7700_reconfigure(double *lux);
 
 static uint8_t   indexOf(uint8_t, const uint8_t *, uint8_t);
 
@@ -104,7 +105,7 @@ void veml7700_read(void *data)
     struct veml7700_data *d = (struct veml7700_data *) data;
     double lux, white;
 
-    if ((veml7700_read_als(&lux) == ESP_OK) &&
+    if ((veml7700_read_lux(&lux) == ESP_OK) &&
         (veml7700_read_white(&white) == ESP_OK)) {
         d->lux   = lux;
         d->white = white;
@@ -266,20 +267,33 @@ static esp_err_t veml7700_read_reg(uint8_t reg_addr, uint16_t *data)
 }
 
 
-
-static esp_err_t veml7700_read_als(double *lux)
+static esp_err_t veml7700_read_als(uint16_t *als)
 {
     esp_err_t ret = ESP_OK;
-    uint16_t  read_data;
 
-    ret = veml7700_read_reg(VEML7700_ALS_DATA, &read_data);
+    ret = veml7700_read_reg(VEML7700_ALS_DATA, als);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Error al leer datos de luz.");
         aux_i2c_err(TAG, ret);
         return ret;
     }
 
-    *lux = read_data * g_cfg.res;
+    return ret;
+}
+
+static esp_err_t veml7700_read_lux(double *lux)
+{
+    esp_err_t ret = ESP_OK;
+    uint16_t  read_als;
+
+    ret = veml7700_read_als(&read_als);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al leer datos de luz.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+
+    *lux = read_als * g_cfg.res;
 
     return ret;
 }
@@ -301,14 +315,17 @@ static esp_err_t veml7700_read_white(double *white)
     return ret;
 }
 
-
-
-static esp_err_t veml7700_reconfigure(double *lux)
+/* Esto va a empezar siendo un algoritmo normal pero estaría mejor que fuera
+ * una máquina de estados, para sólo hacer la parte que corresponde y no hacer
+ * lecturas de más */
+static esp_err_t veml7700_auto_lux(double *lux)
 {
     esp_err_t ret = ESP_OK;
 
     return ret;
 }
+
+
 
 
 
