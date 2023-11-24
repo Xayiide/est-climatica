@@ -36,6 +36,9 @@
 #define VEML7700_PERS_4   0x02
 #define VEML7700_PERS_8   0x03
 
+#define VEML7700_POWERON  0x00
+#define VEML7700_SHUTDOWN 0x01
+
 #define VEML7700_POWERSAVE_MODE1 0x00
 #define VEML7700_POWERSAVE_MODE2 0x01
 #define VEML7700_POWERSAVE_MODE3 0x02
@@ -43,8 +46,8 @@
 
 struct veml7700_data
 {
-    double lux;
-    double white;
+    double   lux;
+    uint16_t white;
 };
 
 struct veml7700_config

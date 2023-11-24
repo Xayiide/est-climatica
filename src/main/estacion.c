@@ -65,7 +65,7 @@ void app_main()
         veml7700_read((void *) &d);
 
 
-        printf("lux: %f || white: %f\n", d.lux, d.white);
+        printf("lux: %f || white: %d\n", d.lux, d.white);
         vTaskDelay(2000 / portTICK_RATE_MS);
     }
 

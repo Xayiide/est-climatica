@@ -1,4 +1,4 @@
-#include <math.h>         /* ceil */
+#include <math.h>         /* pow                 */
 #include "driver/i2c.h"   /* i2c                 */
 #include "driver/gpio.h"  /* GPIO_PULLUP_ENABLE  */
 #include "esp_log.h"      /* ESP_LOGE            */
@@ -54,23 +54,23 @@ static struct veml7700_config g_cfg;
 
 static struct veml7700_config veml7700_default_config();
 static double    veml7700_get_resolution (struct veml7700_config cfg);
-static esp_err_t veml7700_send_config    (struct veml7700_config cfg);
+static esp_err_t veml7700_update_config    (struct veml7700_config cfg);
+static esp_err_t veml7700_set_gain       (uint8_t gain);
+static esp_err_t veml7700_set_integration(uint8_t it);
+static esp_err_t veml7700_set_persistence(uint8_t pers);
+static esp_err_t veml7700_set_interrupt  (uint8_t int_en);
+static esp_err_t veml7700_set_shutdown   (uint8_t sd);
 
 /* lux maximos con la configuración actual */
 static double    veml7700_current_max_lux(struct veml7700_config cfg);
-/* valor más alto posible de lux máximos (120 796) */
-static double    veml7700_highest_max_lux(struct veml7700_config cfg);
-/* valor más bajo posible de lux máximos (236) */
-static double    veml7700_lowest_max_lux (struct veml7700_config cfg);
-
 
 static esp_err_t veml7700_write_reg(uint8_t reg_addr, uint16_t data);
 static esp_err_t veml7700_read_reg (uint8_t reg_addr, uint16_t *data);
 
-static esp_err_t veml7700_read_als  (double *als);
-static esp_err_t veml7700_read_lux  (double *lux);
-static esp_err_t veml7700_read_white(double *white);
-static esp_err_t veml7700_auto_lux  (double *lux);
+static esp_err_t veml7700_read_als  (uint16_t *als);
+static esp_err_t veml7700_read_white(uint16_t *white);
+static esp_err_t veml7700_read_lux  (double   *lux);
+static esp_err_t veml7700_auto_lux  (double   *lux);
 
 
 static uint8_t   indexOf(uint8_t, const uint8_t *, uint8_t);
@@ -95,7 +95,7 @@ esp_err_t veml7700_init()
     ESP_ERROR_CHECK(i2c_param_config(VEML7700_I2C_NUM, &i2c_config));
 
     g_cfg = veml7700_default_config();
-    ESP_ERROR_CHECK(veml7700_send_config(g_cfg));
+    ESP_ERROR_CHECK(veml7700_update_config(g_cfg));
 
     return ret;
 }
@@ -103,16 +103,17 @@ esp_err_t veml7700_init()
 void veml7700_read(void *data)
 {
     struct veml7700_data *d = (struct veml7700_data *) data;
-    double lux, white;
+    double   lux;
+    uint16_t white;
 
-    if ((veml7700_read_lux(&lux) == ESP_OK) &&
+    if ((veml7700_auto_lux(&lux) == ESP_OK) &&
         (veml7700_read_white(&white) == ESP_OK)) {
         d->lux   = lux;
         d->white = white;
     }
     else {
         d->lux   = -1.0;
-        d->white = -1.0;
+        d->white = -1;
     }
 
     data = d;
@@ -136,13 +137,10 @@ static struct veml7700_config veml7700_default_config()
     cfg.it             = VEML7700_IT_800MS;
     cfg.persistence    = VEML7700_PERS_1;
     cfg.int_en         = 0;
-    cfg.shutdown       = VEML7700_POWERSAVE_MODE1;
+    cfg.shutdown       = VEML7700_POWERON;
 
     cfg.i2c_master_num = VEML7700_I2C_NUM;
     cfg.addr           = VEML7700_ADDRESS;
-
-    cfg.res     = veml7700_get_resolution(cfg);
-    cfg.max_lux = veml7700_current_max_lux(cfg);
 
     return cfg;
 }
@@ -165,7 +163,7 @@ static double veml7700_get_resolution(struct veml7700_config cfg)
  * 1     - x    interrupciones
  * 0     - x    shutdown
  */
-static esp_err_t veml7700_send_config(struct veml7700_config cfg)
+static esp_err_t veml7700_update_config(struct veml7700_config cfg)
 {
     esp_err_t ret      = ESP_OK;
     uint16_t  cfg_bits = 0;
@@ -180,9 +178,85 @@ static esp_err_t veml7700_send_config(struct veml7700_config cfg)
     ESP_LOGI(TAG, "Configuration bits: 0x%X", cfg_bits);
     ret = veml7700_write_reg(VEML7700_ALS_CONF, cfg_bits);
 
+    cfg.res     = veml7700_get_resolution(cfg);
+    cfg.max_lux = veml7700_current_max_lux(cfg);
+
     return ret;
 }
 
+static esp_err_t veml7700_set_gain(uint8_t gain)
+{
+    esp_err_t ret = ESP_OK;
+
+    g_cfg.gain = gain;
+    ret = veml7700_update_config(g_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al cambiar la ganancia.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+static esp_err_t veml7700_set_integration(uint8_t it)
+{
+    esp_err_t ret = ESP_OK;
+
+
+    g_cfg.it = it;
+    ret = veml7700_update_config(g_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al cambiar el tiempo de integración.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+static esp_err_t veml7700_set_persistence(uint8_t pers)
+{
+    esp_err_t ret = ESP_OK;
+
+    g_cfg.persistence = pers;
+    ret = veml7700_update_config(g_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al cambiar la persistencia.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+static esp_err_t veml7700_set_interrupt(uint8_t int_en)
+{
+    esp_err_t ret = ESP_OK;
+
+    g_cfg.int_en = int_en;
+    ret = veml7700_update_config(g_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al cambiar el estado de interrupciones.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+    return ret;
+}
+
+static esp_err_t veml7700_set_shutdown(uint8_t sd)
+{
+    esp_err_t ret = ESP_OK;
+
+    g_cfg.shutdown = sd;
+    ret = veml7700_update_config(g_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al cambiar el estado de apagado.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+    return ret;
+}
 
 
 
@@ -192,17 +266,6 @@ static double veml7700_current_max_lux(struct veml7700_config cfg)
     int it_index   = indexOf(cfg.it, it_values, VEML7700_IT_VALUES);
 
     return (double) maximums_table[it_index][gain_index];
-}
-
-static double veml7700_highest_max_lux(struct veml7700_config cfg)
-{
-    return (double)
-            maximums_table[VEML7700_IT_VALUES - 1][VEML7700_GAIN_VALUES - 1];
-}
-
-static double veml7700_lowest_max_lux(struct veml7700_config cfg)
-{
-    return (double) maximums_table[0][0];
 }
 
 
@@ -281,6 +344,20 @@ static esp_err_t veml7700_read_als(uint16_t *als)
     return ret;
 }
 
+static esp_err_t veml7700_read_white(uint16_t *white)
+{
+    esp_err_t ret = ESP_OK;
+
+    ret = veml7700_read_reg(VEML7700_ALS_WHITE_DATA, white);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error al leer datos de luz blanca.");
+        aux_i2c_err(TAG, ret);
+        return ret;
+    }
+
+    return ret;
+}
+
 static esp_err_t veml7700_read_lux(double *lux)
 {
     esp_err_t ret = ESP_OK;
@@ -298,29 +375,55 @@ static esp_err_t veml7700_read_lux(double *lux)
     return ret;
 }
 
-static esp_err_t veml7700_read_white(double *white)
-{
-    esp_err_t ret = ESP_OK;
-    uint16_t  read_data;
-
-    ret = veml7700_read_reg(VEML7700_ALS_WHITE_DATA, &read_data);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Error al leer datos de luz blanca.");
-        aux_i2c_err(TAG, ret);
-        return ret;
-    }
-
-    *white = read_data * g_cfg.res;
-
-    return ret;
-}
-
 /* Esto va a empezar siendo un algoritmo normal pero estaría mejor que fuera
  * una máquina de estados, para sólo hacer la parte que corresponde y no hacer
  * lecturas de más */
 static esp_err_t veml7700_auto_lux(double *lux)
 {
     esp_err_t ret = ESP_OK;
+    uint8_t   gain_index, it_index, correction = 0;
+    double    lux_value;
+    uint16_t  als;
+
+    /* Gain: 1/8, IT: 100 MS */
+    gain_index = indexOf(VEML7700_GAIN_1_8, gain_values, VEML7700_GAIN_VALUES);
+    it_index   = indexOf(VEML7700_IT_100MS, it_values, VEML7700_IT_VALUES);
+    veml7700_set_gain(gain_values[gain_index]);
+    veml7700_set_integration(it_values[it_index]);
+
+    veml7700_read_als(&als);
+
+    if (als <= 100) {
+        while ((als <= 100) && !((gain_index == VEML7700_GAIN_VALUES - 1) &&
+                                 (it_index == VEML7700_IT_VALUES - 1))) {
+            if (gain_index < (VEML7700_GAIN_VALUES - 1)) {
+                gain_index++;
+                veml7700_set_gain(gain_values[gain_index]);
+            }
+            else if (it_index < (VEML7700_IT_VALUES - 1)) {
+                it_index++;
+                veml7700_set_integration(it_index);
+            }
+        }
+        veml7700_read_als(&als);
+    }
+    else {
+        correction = 1;
+        while ((als > 10000) && (it_index > 0)) {
+            it_index--;
+            veml7700_set_integration(it_values[it_index]);
+            veml7700_read_als(&als);
+        }
+    }
+
+    lux_value = als * g_cfg.res;
+    if (correction == 1) {
+        lux_value = (6.0135e-13 * pow(lux_value, 4)) -
+                    (9.3924e-19 * pow(lux_value, 3)) +
+                    (8.1488e-5  * pow(lux_value, 2)) +
+                    (1.0023 * lux_value);
+    }
+    *lux = lux_value;
 
     return ret;
 }
