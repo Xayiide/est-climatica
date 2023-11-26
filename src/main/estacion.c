@@ -10,6 +10,8 @@
 
 #include "esp_netif.h"         /* esp_netif_init                */
 
+#include "esp_system.h"        /* esp_cpu_freq_t set_cpu_freq   */
+
 /* Component includes */
 #include "ezconnect.h"
 #include "thingsboard.h"
@@ -41,6 +43,8 @@ static void create_data_sources()
 void app_main()
 {
     diag_init();
+
+    esp_set_cpu_freq(ESP_CPU_FREQ_80M);
 
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
