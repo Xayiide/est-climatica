@@ -70,7 +70,12 @@ void app_main()
 
 
         printf("lux: %f || white: %d\n", d.lux, d.white);
+        TickType_t xT0 = xTaskGetTickCount();
         vTaskDelay(2000 / portTICK_RATE_MS);
+        TickType_t xT1 = xTaskGetTickCount();
+        printf("Tick count: %d\n", xT1 - xT0);
+
+        vTaskDelay(20 / portTICK_RATE_MS);
     }
 
 }

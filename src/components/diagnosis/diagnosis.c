@@ -29,8 +29,9 @@ esp_err_t diag_init()
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
 
+    ESP_LOGI(TAG, "Versión IDF: %s", diag_idf_version);
     xTaskCreate(diag_monitoring_task, "diag_monitoring_task",
-                1024, NULL, 10, NULL);
+                2048, NULL, 10, NULL);
 
     return ret;
 }
@@ -44,13 +45,12 @@ static void diag_monitoring_task()
 
         diag_print_info();
 
-        vTaskDelay(10000 * 1000 / portTICK_RATE_MS);
+        vTaskDelay(10000 / portTICK_RATE_MS);
     }
 }
 
 static void diag_print_info()
 {
-    ESP_LOGI(TAG, "Versión IDF: %s", diag_idf_version);
     ESP_LOGI(TAG, "Memoria libre: %d bytes", diag_mem_info.free_heap);
     ESP_LOGI(TAG, "Mínima memoria libre: %d bytes", diag_mem_info.lowest_heap);
 }

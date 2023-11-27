@@ -1,11 +1,11 @@
-#include <math.h>         /* pow                 */
-#include <time.h>
-#include "driver/i2c.h"   /* i2c                 */
-#include "driver/gpio.h"  /* GPIO_PULLUP_ENABLE  */
-#include "esp_log.h"      /* ESP_LOGE            */
-#include "esp_err.h"      /* esp_err_t           */
+#include <math.h>          /* pow                 */
+#include "driver/i2c.h"    /* i2c                 */
+#include "driver/gpio.h"   /* GPIO_PULLUP_ENABLE  */
+#include "esp_log.h"       /* ESP_LOGE            */
+#include "esp_err.h"       /* esp_err_t           */
+#include "freertos/task.h" /* TickType_t          */
 
-#include "aux.h"          /* aux_i2c_err, NELEMS */
+#include "aux.h"           /* aux_i2c_err, NELEMS */
 #include "include/veml7700.h"
 
 #define VEML7700_GAIN_VALUES 4
@@ -13,6 +13,11 @@
 
 
 static const char *TAG = "[veml7700]";
+
+/* TODO: Esto puede hacerse de otra forma? */
+static struct veml7700_config g_cfg;
+static TickType_t             g_last_read;
+
 
 static const uint8_t gain_values[VEML7700_GAIN_VALUES] = {
     VEML7700_GAIN_2,
@@ -65,8 +70,6 @@ static const uint32_t maximums_table[VEML7700_IT_VALUES][VEML7700_GAIN_VALUES] =
     {7550, 15099, 60398, 120796}
 };
 
-/* TODO: Esto puede hacerse de otra forma? */
-static struct veml7700_config g_cfg;
 
 
 
@@ -91,8 +94,10 @@ static esp_err_t veml7700_read_lux  (double   *lux);
 static esp_err_t veml7700_auto_lux  (double   *lux);
 
 
-static char     *veml7700_gain_to_str(uint8_t gain);
-static char     *veml7700_it_to_str  (uint8_t it);
+static double    veml7700_gain_to_value(uint8_t gain);
+static uint32_t  veml7700_it_to_value  (uint8_t it);
+static char     *veml7700_gain_to_str  (uint8_t gain);
+static char     *veml7700_it_to_str    (uint8_t it);
 static uint8_t   indexOf(uint8_t, const uint8_t *, uint8_t);
 
 
@@ -116,6 +121,8 @@ esp_err_t veml7700_init()
 
     g_cfg = veml7700_default_config();
     ESP_ERROR_CHECK(veml7700_update_config(&g_cfg));
+
+    g_last_read = xTaskGetTickCount();
 
     return ret;
 }
@@ -361,7 +368,12 @@ static esp_err_t veml7700_read_als(uint16_t *als)
     esp_err_t ret = ESP_OK;
 
     /* Esperar lo suficiente para respetar el tiempo de integración */
+    uint32_t waitms   = 2 * veml7700_it_to_value(g_cfg.it) * portTICK_RATE_MS;
+    uint32_t passedms = (xTaskGetTickCount() / portTICK_RATE_MS) -
+                        (g_last_read / portTICK_RATE_MS);
 
+    if (passedms < waitms)
+        vTaskDelay((waitms - passedms) / portTICK_RATE_MS);
 
     ret = veml7700_read_reg(VEML7700_ALS_DATA, als);
     if (ret != ESP_OK) {
@@ -466,6 +478,43 @@ static esp_err_t veml7700_auto_lux(double *lux)
 
 
 
+
+static double veml7700_gain_to_value(uint8_t gain)
+{
+    switch (gain) {
+    case VEML7700_GAIN_1_8:
+        return 0.125;
+    case VEML7700_GAIN_1_4:
+        return 0.25;
+    case VEML7700_GAIN_1:
+        return 1.0;
+    case VEML7700_GAIN_2:
+        return 2.0;
+    default:
+        return 0.0;
+    }
+}
+
+static uint32_t veml7700_it_to_value(uint8_t it)
+{
+    switch (it) {
+    case VEML7700_IT_25MS:
+        return 25;
+    case VEML7700_IT_50MS:
+        return 50;
+    case VEML7700_IT_100MS:
+        return 100;
+    case VEML7700_IT_200MS:
+        return 200;
+    case VEML7700_IT_400MS:
+        return 400;
+    case VEML7700_IT_800MS:
+        return 800;
+    default:
+        return 0;
+    }
+}
+
 static char *veml7700_gain_to_str(uint8_t gain)
 {
     switch (gain) {
@@ -481,7 +530,6 @@ static char *veml7700_gain_to_str(uint8_t gain)
         return "NONE";
     }
 }
-
 
 static char *veml7700_it_to_str(uint8_t it)
 {
